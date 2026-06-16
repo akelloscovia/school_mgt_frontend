@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 /* LAYOUT */
-import Layout from "../components/layout/Layout";
+import Layout from "../components/layout/layout";
 
 /* AUTH */
-import Login from "../pages/auth/Login";
+import Login from "../pages/auth/login";
 import Forgot from "../pages/auth/Forgot";
 import Reset from "../pages/auth/Reset";
 import ProtectedRoute from "./ProtectedRoute";
