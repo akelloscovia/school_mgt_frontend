@@ -1,8 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://school-management-q35g.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 /**
  * Ensures clean base URL:
@@ -10,18 +8,18 @@ const API_BASE_URL =
  * - avoids double /api/api issues
  */
 function normalizeBaseUrl(url) {
-  if (!url) return "http://localhost:5000/api";
+  if (!url) return "/api";
 
-  // Ensure protocol exists
-  if (!/^https?:\/\//i.test(url)) {
+  // Remove trailing slash(es)
+  url = url.replace(/\/+$/, "");
+
+  // If the URL is a plain hostname or domain, prefer https
+  if (!/^https?:\/\//i.test(url) && !url.startsWith('/')) {
     url = `https://${url}`;
   }
 
-  // Remove trailing slash
-  url = url.replace(/\/$/, "");
-
-  // Ensure the API path is present
-  if (!url.toLowerCase().endsWith("/api")) {
+  // Add /api when the base has a host but no API prefix yet
+  if (/^https?:\/\//i.test(url) && !url.toLowerCase().includes("/api")) {
     url = `${url}/api`;
   }
 
