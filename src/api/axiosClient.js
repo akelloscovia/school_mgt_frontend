@@ -18,7 +18,14 @@ function normalizeBaseUrl(url) {
   }
 
   // Remove trailing slash
-  return url.replace(/\/$/, "");
+  url = url.replace(/\/$/, "");
+
+  // Ensure the API path is present
+  if (!url.toLowerCase().endsWith("/api")) {
+    url = `${url}/api`;
+  }
+
+  return url;
 }
 
 const axiosClient = axios.create({
