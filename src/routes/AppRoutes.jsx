@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 
 /* LAYOUT */
 import Layout from "../components/layout/layout";
@@ -51,7 +51,7 @@ import Messages from "../pages/messages/Messages";
 
 export default function AppRoutes() {
   return (
-    <BrowserRouter>
+    <HashRouter>
 
       <Routes>
 
@@ -158,6 +158,6 @@ export default function AppRoutes() {
 
       </Routes>
 
-    </BrowserRouter>
+    </HashRouter>
   );
 }
