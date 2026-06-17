@@ -69,7 +69,7 @@ axiosClient.interceptors.response.use(
       );
 
       // Redirect safely
-      window.location.href = "/login";
+      window.location.href = "/#/login";
     }
 
     return Promise.reject(error);

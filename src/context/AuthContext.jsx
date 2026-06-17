@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
       // centralized handling of unauthorized events from axios
       logout();
       // navigate to login page
-      window.location.href = '/login';
+      window.location.href = '/#/login';
     };
 
     window.addEventListener('auth:unauthorized', handler);
