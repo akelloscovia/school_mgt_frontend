@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
-import PRESET_CLASSES from "../../data/classes";
+import PRESET_CLASSES, { sortClassLabels } from "../../data/classes";
 
 const LOCAL_STORAGE_STUDENTS = "school-ms-frontend-students";
 
@@ -54,7 +54,8 @@ export default function Students() {
       .map((value) => value.toString().trim());
 
     const preset = PRESET_CLASSES.map((c) => c.label);
-    return Array.from(new Set([...preset, ...fromStudents]));
+    const uniqueLabels = Array.from(new Set([...preset, ...fromStudents]));
+    return sortClassLabels(uniqueLabels);
   }, [students]);
 
   const getStudentClassLabel = (student) => {

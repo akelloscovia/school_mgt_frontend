@@ -9,6 +9,7 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -18,7 +19,7 @@ export default function Login() {
     setIsLoading(true);
 
     axiosClient
-      .post("/auth/login", { email, password })
+      .post("/auth/login", { email: email.trim(), password })
       .then((response) => {
         const payload = response.data?.data;
         if (payload && payload.access_token && payload.user) {
@@ -60,14 +61,37 @@ export default function Login() {
           autoComplete="username"
         />
 
-        <input
-          type="password"
-          placeholder="Enter Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            style={{ paddingRight: "90px" }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            style={{
+              position: "absolute",
+              right: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              border: "none",
+              background: "transparent",
+              color: "#007bff",
+              cursor: "pointer",
+              fontSize: "1.1rem",
+              padding: "0",
+              lineHeight: 1
+            }}
+          >
+            {showPassword ? "👁️" : "👁️"}
+          </button>
+        </div>
 
         <button type="submit" disabled={isLoading}>
           {isLoading ? "Logging in..." : "Login"}

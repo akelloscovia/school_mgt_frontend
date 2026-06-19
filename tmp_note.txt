@@ -1,0 +1,1 @@
+patching Library.jsx to add availableBooks and book search

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
+import { sortClasses } from "../../data/classes";
 
 export default function Exams() {
   const [marks, setMarks] = useState([]);
@@ -9,6 +10,7 @@ export default function Exams() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({
     student_id: "",
     subject_id: "",
@@ -16,6 +18,15 @@ export default function Exams() {
     exam_type: "mid-term",
   });
   const [status, setStatus] = useState("");
+  const [showSubjectManager, setShowSubjectManager] = useState(false);
+  const [subjectEditingId, setSubjectEditingId] = useState(null);
+  const [subjectFormData, setSubjectFormData] = useState({
+    name: "",
+    code: "",
+    description: "",
+    credit_hours: 40,
+    class_id: "",
+  });
 
   useEffect(() => {
     fetchClasses();
@@ -28,13 +39,20 @@ export default function Exams() {
     }
   }, [selectedClass, selectedSubject]);
 
+  useEffect(() => {
+    if (selectedClass) {
+      setSubjectFormData((prev) => ({ ...prev, class_id: selectedClass }));
+    }
+  }, [selectedClass]);
+
   const fetchClasses = async () => {
     try {
       const response = await axiosClient.get("/classes");
       const classesData = response.data?.data?.items || [];
-      setClasses(classesData);
-      if (classesData.length > 0) {
-        setSelectedClass(classesData[0].id);
+      const sorted = sortClasses(classesData);
+      setClasses(sorted);
+      if (sorted.length > 0) {
+        setSelectedClass(sorted[0].id);
       }
     } catch (error) {
       console.error("Error fetching classes:", error);
@@ -44,10 +62,12 @@ export default function Exams() {
   const fetchSubjects = async (classId) => {
     try {
       const response = await axiosClient.get(`/classes/${classId}/subjects`);
-      const subjectsData = response.data?.data || [];
+      const subjectsData = response.data?.data?.items || response.data?.data || [];
       setSubjects(subjectsData);
       if (subjectsData.length > 0) {
         setSelectedSubject(subjectsData[0].id);
+      } else {
+        setSelectedSubject("");
       }
     } catch (error) {
       console.error("Error fetching subjects:", error);
@@ -85,12 +105,15 @@ export default function Exams() {
 
     try {
       setLoading(true);
-      await axiosClient.post("/marks", {
-        ...formData,
-        subject_id: selectedSubject,
-      });
-      
-      setStatus("Mark recorded successfully!");
+      const payload = { ...formData, subject_id: formData.subject_id || selectedSubject };
+      if (editingId) {
+        // update existing mark
+        await axiosClient.put(`/marks/${editingId}`, payload);
+        setStatus("Mark updated successfully!");
+      } else {
+        await axiosClient.post("/marks", payload);
+        setStatus("Mark recorded successfully!");
+      }
       setFormData({
         student_id: "",
         subject_id: "",
@@ -98,9 +121,94 @@ export default function Exams() {
         exam_type: "mid-term",
       });
       setShowForm(false);
+      setEditingId(null);
       fetchMarks();
     } catch (error) {
       setStatus(error.response?.data?.error || "Failed to record mark");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubjectFormChange = (e) => {
+    const { name, value } = e.target;
+    setSubjectFormData((prev) => ({
+      ...prev,
+      [name]: name === "credit_hours" ? (value === "" ? "" : parseInt(value, 10)) : value,
+    }));
+  };
+
+  const handleSubjectSubmit = async (e) => {
+    e.preventDefault();
+    setStatus("");
+
+    if (!selectedClass) {
+      setStatus("Select a class before managing subjects.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const payload = { ...subjectFormData, class_id: subjectFormData.class_id || selectedClass };
+      if (subjectEditingId) {
+        await axiosClient.put(`/subjects/${subjectEditingId}`, payload);
+        setStatus("Subject updated successfully!");
+      } else {
+        await axiosClient.post("/subjects", payload);
+        setStatus("Subject added successfully!");
+      }
+
+      setSubjectFormData({
+        name: "",
+        code: "",
+        description: "",
+        credit_hours: 40,
+        class_id: selectedClass,
+      });
+      setSubjectEditingId(null);
+      setShowSubjectManager(false);
+      fetchSubjects(selectedClass);
+    } catch (error) {
+      setStatus(error.response?.data?.error || "Failed to save subject");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubjectEdit = (subject) => {
+    setShowSubjectManager(true);
+    setSubjectEditingId(subject.id);
+    setSubjectFormData({
+      name: subject.name || "",
+      code: subject.code || "",
+      description: subject.description || "",
+      credit_hours: subject.credit_hours || 40,
+      class_id: selectedClass,
+    });
+  };
+
+  const handleMarkEdit = (mark) => {
+    setFormData({
+      student_id: mark.student_id || "",
+      subject_id: mark.subject_id || selectedSubject,
+      score: mark.score || "",
+      exam_type: mark.exam_type || "mid-term",
+    });
+    setEditingId(mark.id);
+    setShowForm(true);
+  };
+
+  const handleSubjectDelete = async (subjectId) => {
+    if (!window.confirm("Delete this subject?")) return;
+
+    try {
+      setLoading(true);
+      await axiosClient.delete(`/subjects/${subjectId}`);
+      setStatus("Subject deleted successfully!");
+      fetchSubjects(selectedClass);
+    } catch (error) {
+      setStatus("Failed to delete subject");
     } finally {
       setLoading(false);
     }
@@ -166,12 +274,144 @@ export default function Exams() {
         </label>
 
         <button
-          onClick={() => setShowForm(!showForm)}
-          style={{ padding: "8px 16px" }}
+          onClick={() => {
+            const opening = !showForm;
+            setShowForm(opening);
+            if (opening) {
+              // prefill subject for new mark
+              setFormData((prev) => ({ ...prev, subject_id: selectedSubject }));
+              setEditingId(null);
+            }
+          }}
+          style={{ padding: "8px 16px", marginRight: "10px" }}
         >
           {showForm ? "Cancel" : "Record Mark"}
         </button>
+
+        <button
+          onClick={() => setShowSubjectManager((prev) => !prev)}
+          style={{ padding: "8px 16px" }}
+          disabled={!selectedClass}
+        >
+          {showSubjectManager ? "Hide Subject Manager" : "Manage Subjects"}
+        </button>
       </div>
+
+      {showSubjectManager && (
+        <div className="card" style={{ marginBottom: "30px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div>
+              <h3>Class Subjects</h3>
+              <p style={{ margin: 0 }}>{selectedClass ? `Class ${selectedClass} subjects` : "Select a class to manage subjects."}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSubjectEditingId(null);
+                setSubjectFormData({
+                  name: "",
+                  code: "",
+                  description: "",
+                  credit_hours: 40,
+                  class_id: selectedClass,
+                });
+              }}
+              style={{ padding: "8px 16px" }}
+            >
+              Add New Subject
+            </button>
+          </div>
+
+          {selectedClass ? (
+            <>
+              <table style={{ width: "100%", marginBottom: "16px" }}>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Credit Hours</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subjects.length > 0 ? (
+                    subjects.map((subject) => (
+                      <tr key={subject.id}>
+                        <td>{subject.name}</td>
+                        <td>{subject.code || "N/A"}</td>
+                        <td>{subject.credit_hours || "N/A"}</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleSubjectEdit(subject)}
+                            style={{ marginRight: "10px", cursor: "pointer" }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSubjectDelete(subject.id)}
+                            style={{ color: "red", cursor: "pointer", border: "none", background: "transparent" }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="4">No subjects found for this class.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              <form onSubmit={handleSubjectSubmit} className="form-container" style={{ marginBottom: "0" }}>
+                <h3>{subjectEditingId ? "Edit Subject" : "Add Subject"}</h3>
+
+                <input
+                  type="text"
+                  name="name"
+                  placeholder="Subject Name"
+                  value={subjectFormData.name}
+                  onChange={handleSubjectFormChange}
+                  required
+                />
+
+                <input
+                  type="text"
+                  name="code"
+                  placeholder="Subject Code"
+                  value={subjectFormData.code}
+                  onChange={handleSubjectFormChange}
+                />
+
+                <textarea
+                  name="description"
+                  placeholder="Description"
+                  value={subjectFormData.description}
+                  onChange={handleSubjectFormChange}
+                />
+
+                <input
+                  type="number"
+                  name="credit_hours"
+                  placeholder="Credit Hours"
+                  value={subjectFormData.credit_hours}
+                  onChange={handleSubjectFormChange}
+                  min="1"
+                />
+
+                <button type="submit" disabled={loading}>
+                  {loading ? (subjectEditingId ? "Saving..." : "Adding...") : subjectEditingId ? "Update Subject" : "Add Subject"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <p>Select a class to manage subjects.</p>
+          )}
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="form-container" style={{ marginBottom: "30px" }}>
@@ -214,7 +454,7 @@ export default function Exams() {
           />
 
           <button type="submit" disabled={loading}>
-            {loading ? "Recording..." : "Record Mark"}
+            {loading ? (editingId ? "Updating..." : "Recording...") : editingId ? "Update Mark" : "Record Mark"}
           </button>
         </form>
       )}
@@ -230,6 +470,7 @@ export default function Exams() {
               <th>Score</th>
               <th>Grade</th>
               <th>Exam Type</th>
+              <th>Actions</th>
             </tr>
           </thead>
 
@@ -243,6 +484,10 @@ export default function Exams() {
                   <td>{mark.score}</td>
                   <td>{grade}</td>
                   <td>{mark.exam_type}</td>
+                  <td>
+                    <button onClick={() => handleMarkEdit(mark)} style={{ marginRight: 8 }}>Edit</button>
+                    <button style={{ color: 'red' }} onClick={async () => { if (window.confirm('Delete this mark?')) { try { setLoading(true); await axiosClient.delete(`/marks/${mark.id}`); setStatus('Mark deleted'); fetchMarks(); } catch (e) { setStatus('Failed to delete mark'); } finally { setLoading(false); } } }}>Delete</button>
+                  </td>
                 </tr>
               );
             })}

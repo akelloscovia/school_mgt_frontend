@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
+import { getClassLabel, sortClasses } from "../../data/classes";
 
 export default function Attendance() {
   const [attendanceData, setAttendanceData] = useState([]);
+  const [classStudents, setClassStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -14,21 +16,43 @@ export default function Attendance() {
   }, []);
 
   useEffect(() => {
+    if (selectedClass) {
+      fetchClassStudents();
+    }
     if (selectedClass && selectedDate) {
       fetchAttendance();
+    } else {
+      setAttendanceData([]);
     }
   }, [selectedClass, selectedDate]);
+
+  const getAttendanceStudentId = (record) =>
+    record.student_id || record.student?.id || record.student?.user?.id;
 
   const fetchClasses = async () => {
     try {
       const response = await axiosClient.get("/classes");
       const classesData = response.data?.data?.items || [];
-      setClasses(classesData);
-      if (classesData.length > 0) {
-        setSelectedClass(classesData[0].id);
+      const sorted = sortClasses(classesData);
+      setClasses(sorted);
+      if (sorted.length > 0) {
+        setSelectedClass(sorted[0].id);
       }
     } catch (error) {
       console.error("Error fetching classes:", error);
+    }
+  };
+
+  const fetchClassStudents = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosClient.get(`/students?class_id=${selectedClass}`);
+      setClassStudents(response.data?.data?.items || []);
+    } catch (error) {
+      console.error("Error fetching class students:", error);
+      setClassStudents([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,14 +78,17 @@ export default function Attendance() {
         date: selectedDate,
         status: status,
       });
-      
-      // Update local state
-      setAttendanceData((prev) =>
-        prev.map((item) =>
-          item.student_id === studentId ? { ...item, status } : item
-        )
-      );
-      
+
+      setAttendanceData((prev) => {
+        const existing = prev.find((item) => getAttendanceStudentId(item) === studentId);
+        if (existing) {
+          return prev.map((item) =>
+            getAttendanceStudentId(item) === studentId ? { ...item, status } : item
+          );
+        }
+        return [...prev, { student_id: studentId, status, remarks: "", date: selectedDate }];
+      });
+
       setStatus("Attendance marked successfully!");
     } catch (error) {
       setStatus(error.response?.data?.error || "Failed to mark attendance");
@@ -89,7 +116,7 @@ export default function Attendance() {
             <option value="">Select Class</option>
             {classes.map((cls) => (
               <option key={cls.id} value={cls.id}>
-                {cls.name} - {cls.level}
+                {getClassLabel(cls)}
               </option>
             ))}
           </select>
@@ -108,42 +135,53 @@ export default function Attendance() {
 
       {loading ? (
         <p>Loading attendance records...</p>
-      ) : attendanceData.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Student Name</th>
-              <th>Status</th>
-              <th>Remarks</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {attendanceData.map((record) => (
-              <tr key={record.id || record.student_id}>
-                <td>{record.student_name || `${record.student?.user?.first_name} ${record.student?.user?.last_name}`}</td>
-                <td>
-                  <select
-                    value={record.status || ""}
-                    onChange={(e) => handleAttendanceChange(record.student_id, e.target.value)}
-                    style={{ padding: "5px" }}
-                  >
-                    <option value="">Mark Attendance</option>
-                    <option value="present">Present</option>
-                    <option value="absent">Absent</option>
-                    <option value="late">Late</option>
-                    <option value="excused">Excused</option>
-                  </select>
-                </td>
-                <td>{record.remarks || "N/A"}</td>
+      ) : classStudents.length > 0 ? (
+        <div>
+          <h3>Students in selected class</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Attendance</th>
+                <th>Remarks</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {classStudents.map((student) => {
+                const studentId = student.id || student.student_id || student.user?.id;
+                const studentName =
+                  student.name ||
+                  `${student.first_name || student.user?.first_name || ""} ${student.last_name || student.user?.last_name || ""}`.trim();
+                const attendanceRecord = attendanceData.find(
+                  (record) => record.student_id === studentId || record.student?.id === studentId
+                );
+                return (
+                  <tr key={studentId || studentName}>
+                    <td>{studentName || "N/A"}</td>
+                    <td>
+                      <select
+                        value={attendanceRecord?.status || ""}
+                        onChange={(e) => handleAttendanceChange(studentId, e.target.value)}
+                        style={{ padding: "5px" }}
+                      >
+                        <option value="">Mark Attendance</option>
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="late">Late</option>
+                        <option value="excused">Excused</option>
+                      </select>
+                    </td>
+                    <td>{attendanceRecord?.remarks || "N/A"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p>
-          {selectedClass && selectedDate
-            ? "No students found for this class, or attendance not yet loaded."
+          {selectedClass
+            ? "No students found for this class, or attendance has not been recorded yet."
             : "Select a class and date to view attendance."}
         </p>
       )}

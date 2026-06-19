@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../../api/axiosClient";
-import PRESET_CLASSES from "../../data/classes";
+import PRESET_CLASSES, { sortClasses } from "../../data/classes";
 
 const LOCAL_STORAGE_STUDENTS = "school-ms-frontend-students";
 
@@ -73,7 +73,7 @@ export default function RegisterStudent() {
           return acc;
         }, {})
       );
-      return unique;
+      return sortClasses(unique);
     });
 
     axiosClient
@@ -95,7 +95,7 @@ export default function RegisterStudent() {
               return acc;
             }, {})
           );
-          return uniqueById;
+          return sortClasses(uniqueById);
         });
       })
       .catch((error) => {

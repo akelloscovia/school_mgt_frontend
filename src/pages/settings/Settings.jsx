@@ -11,6 +11,17 @@ export default function Settings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role_name: "teacher",
+    phone: "",
+  });
+  const [createStatus, setCreateStatus] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const validatePassword = () => {
     if (!oldPassword) {
@@ -45,7 +56,7 @@ export default function Settings() {
     axiosClient
       .post("/auth/change-password", {
         old_password: oldPassword,
-        new_password: newPassword
+        new_password: newPassword,
       })
       .then((res) => {
         setSuccess("Password changed successfully!");
@@ -60,6 +71,60 @@ export default function Settings() {
         setError(err.response?.data?.error || "Error changing password");
       })
       .finally(() => setLoading(false));
+  };
+
+  const handleNewUserChange = (e) => {
+    const { name, value } = e.target;
+    setNewUserForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validateNewUser = () => {
+    if (!newUserForm.first_name || !newUserForm.last_name || !newUserForm.email || !newUserForm.password) {
+      setCreateStatus("First name, last name, email and password are required.");
+      return false;
+    }
+    if (newUserForm.password.length < 6) {
+      setCreateStatus("Password must be at least 6 characters long.");
+      return false;
+    }
+    if (newUserForm.password !== newUserForm.confirmPassword) {
+      setCreateStatus("Password confirmation does not match.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    setCreateStatus("");
+    if (!validateNewUser()) return;
+
+    setCreating(true);
+    try {
+      const payload = {
+        first_name: newUserForm.first_name,
+        last_name: newUserForm.last_name,
+        email: newUserForm.email,
+        password: newUserForm.password,
+        role_name: newUserForm.role_name,
+        phone: newUserForm.phone || undefined,
+      };
+      await axiosClient.post("/users", payload);
+      setCreateStatus("User created successfully.");
+      setNewUserForm({
+        first_name: "",
+        last_name: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        role_name: "teacher",
+        phone: "",
+      });
+    } catch (error) {
+      setCreateStatus(error.response?.data?.error || "Failed to create user.");
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -254,6 +319,192 @@ export default function Settings() {
           </form>
         )}
       </div>
+
+      {user?.role?.name?.toLowerCase() === "admin" && (
+        <div style={{
+          backgroundColor: "#f8f9fa",
+          padding: "20px",
+          borderRadius: "8px",
+          border: "1px solid #e0e0e0",
+          marginTop: "20px"
+        }}>
+          <h3 style={{ marginTop: 0 }}>Create New User</h3>
+
+          {createStatus && (
+            <div style={{
+              marginBottom: "15px",
+              padding: "10px",
+              borderRadius: "4px",
+              backgroundColor: createStatus.includes("success") ? "#d4edda" : "#ffebee",
+              color: createStatus.includes("success") ? "#155724" : "#d32f2f",
+              border: createStatus.includes("success") ? "1px solid #c3e6cb" : "1px solid #ffcdd2"
+            }}>
+              {createStatus}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateUser}>
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                First Name
+              </label>
+              <input
+                type="text"
+                name="first_name"
+                value={newUserForm.first_name}
+                onChange={handleNewUserChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Last Name
+              </label>
+              <input
+                type="text"
+                name="last_name"
+                value={newUserForm.last_name}
+                onChange={handleNewUserChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={newUserForm.email}
+                onChange={handleNewUserChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={newUserForm.password}
+                onChange={handleNewUserChange}
+                required
+                minLength={6}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={newUserForm.confirmPassword}
+                onChange={handleNewUserChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Role
+              </label>
+              <select
+                name="role_name"
+                value={newUserForm.role_name}
+                onChange={handleNewUserChange}
+                required
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              >
+                <option value="teacher">Teacher</option>
+                <option value="admin">Administrator</option>
+                <option value="accountant">Accountant</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "15px" }}>
+              <label style={{ display: "block", marginBottom: "5px", fontWeight: "500" }}>
+                Phone (optional)
+              </label>
+              <input
+                type="text"
+                name="phone"
+                value={newUserForm.phone}
+                onChange={handleNewUserChange}
+                style={{
+                  width: "100%",
+                  padding: "10px",
+                  border: "1px solid #ddd",
+                  borderRadius: "4px",
+                  boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={creating}
+              style={{
+                padding: "10px 20px",
+                backgroundColor: creating ? "#ccc" : "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: creating ? "not-allowed" : "pointer",
+                fontWeight: "bold"
+              }}
+            >
+              {creating ? "Creating user..." : "Create User"}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

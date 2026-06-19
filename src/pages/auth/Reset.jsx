@@ -27,6 +27,11 @@ export default function Reset() {
     e.preventDefault();
     setError("");
 
+    if (!token) {
+      setError("Password reset token is missing or invalid.");
+      return;
+    }
+
     if (!validatePassword()) {
       return;
     }

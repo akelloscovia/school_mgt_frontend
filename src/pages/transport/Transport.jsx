@@ -8,6 +8,8 @@ export default function Transport() {
   const [status, setStatus] = useState("");
   const [showBusForm, setShowBusForm] = useState(false);
   const [showDormForm, setShowDormForm] = useState(false);
+  const [routeEditingId, setRouteEditingId] = useState(null);
+  const [dormEditingId, setDormEditingId] = useState(null);
   const [busFormData, setBusFormData] = useState({
     route_name: "",
     driver_name: "",
@@ -74,9 +76,14 @@ export default function Transport() {
 
     try {
       setLoading(true);
-      await axiosClient.post("/transport/routes", busFormData);
+      if (routeEditingId) {
+        await axiosClient.put(`/transport/routes/${routeEditingId}`, busFormData);
+        setStatus("Bus route updated successfully!");
+      } else {
+        await axiosClient.post("/transport/routes", busFormData);
+        setStatus("Bus route added successfully!");
+      }
 
-      setStatus("Bus route added successfully!");
       setBusFormData({
         route_name: "",
         driver_name: "",
@@ -84,10 +91,11 @@ export default function Transport() {
         capacity: 50,
         description: "",
       });
+      setRouteEditingId(null);
       setShowBusForm(false);
-      fetchTransportData();
+      await fetchTransportData();
     } catch (error) {
-      setStatus(error.response?.data?.error || "Failed to add bus route");
+      setStatus(error.response?.data?.error || "Failed to save bus route");
     } finally {
       setLoading(false);
     }
@@ -99,18 +107,78 @@ export default function Transport() {
 
     try {
       setLoading(true);
-      await axiosClient.post("/transport/dormitory-allocation", dormFormData);
+      if (dormEditingId) {
+        await axiosClient.put(`/transport/dormitories/${dormEditingId}`, dormFormData);
+        setStatus("Dormitory allocation updated successfully!");
+      } else {
+        await axiosClient.post("/transport/dormitories", dormFormData);
+        setStatus("Dormitory allocation added successfully!");
+      }
 
-      setStatus("Dormitory allocation added successfully!");
       setDormFormData({
         student_id: "",
         dormitory: "",
         room_number: "",
       });
+      setDormEditingId(null);
       setShowDormForm(false);
-      fetchTransportData();
+      await fetchTransportData();
     } catch (error) {
-      setStatus(error.response?.data?.error || "Failed to add dormitory allocation");
+      setStatus(error.response?.data?.error || "Failed to save dormitory allocation");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRouteEdit = (route) => {
+    setRouteEditingId(route.id);
+    setShowBusForm(true);
+    setShowDormForm(false);
+    setBusFormData({
+      route_name: route.route_name || "",
+      driver_name: route.driver_name || "",
+      bus_number: route.bus_number || "",
+      capacity: route.capacity || 50,
+      description: route.description || "",
+    });
+  };
+
+  const handleRouteDelete = async (routeId) => {
+    if (!window.confirm("Delete this bus route?")) return;
+
+    try {
+      setLoading(true);
+      await axiosClient.delete(`/transport/routes/${routeId}`);
+      setStatus("Bus route deleted successfully!");
+      await fetchTransportData();
+    } catch (error) {
+      setStatus("Failed to delete bus route");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDormEdit = (dorm) => {
+    setDormEditingId(dorm.id);
+    setShowDormForm(true);
+    setShowBusForm(false);
+    setDormFormData({
+      student_id: dorm.student_id || "",
+      dormitory: dorm.dormitory || "",
+      room_number: dorm.room_number || "",
+    });
+  };
+
+  const handleDormDelete = async (dormId) => {
+    if (!window.confirm("Delete this dormitory allocation?")) return;
+
+    try {
+      setLoading(true);
+      await axiosClient.delete(`/transport/dormitories/${dormId}`);
+      setStatus("Dormitory allocation deleted successfully!");
+      await fetchTransportData();
+    } catch (error) {
+      setStatus("Failed to delete dormitory allocation");
     } finally {
       setLoading(false);
     }
@@ -136,16 +204,24 @@ export default function Transport() {
               onClick={() => {
                 setShowBusForm(!showBusForm);
                 setShowDormForm(false);
+                setRouteEditingId(null);
+                setBusFormData({
+                  route_name: "",
+                  driver_name: "",
+                  bus_number: "",
+                  capacity: 50,
+                  description: "",
+                });
               }}
               style={{ padding: "8px 16px" }}
             >
-              {showBusForm ? "Cancel" : "Add Bus Route"}
+              {showBusForm ? "Cancel" : routeEditingId ? "Cancel Edit" : "Add Bus Route"}
             </button>
           </div>
 
           {showBusForm && (
             <form onSubmit={handleBusSubmit} style={{ marginBottom: "20px", padding: "10px", border: "1px solid #ccc" }}>
-              <h4>New Bus Route</h4>
+              <h4>{routeEditingId ? "Edit Bus Route" : "New Bus Route"}</h4>
 
               <input
                 type="text"
@@ -197,7 +273,7 @@ export default function Transport() {
               />
 
               <button type="submit" disabled={loading}>
-                {loading ? "Adding..." : "Add Route"}
+                {loading ? (routeEditingId ? "Saving..." : "Adding...") : routeEditingId ? "Save Changes" : "Add Route"}
               </button>
             </form>
           )}
@@ -212,6 +288,7 @@ export default function Transport() {
                   <th>Driver</th>
                   <th>Bus Number</th>
                   <th>Capacity</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
@@ -222,6 +299,14 @@ export default function Transport() {
                     <td>{route.driver_name}</td>
                     <td>{route.bus_number}</td>
                     <td>{route.capacity}</td>
+                    <td>
+                      <button type="button" onClick={() => handleRouteEdit(route)} style={{ marginRight: "8px" }}>
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => handleRouteDelete(route.id)}>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -237,8 +322,24 @@ export default function Transport() {
           <div style={{ marginBottom: "20px" }}>
             <button
               onClick={() => {
-                setShowDormForm(!showDormForm);
+                const newState = !showDormForm;
+                setShowDormForm(newState);
                 setShowBusForm(false);
+                if (newState) {
+                  setDormEditingId(null);
+                  setDormFormData({
+                    student_id: "",
+                    dormitory: "",
+                    room_number: "",
+                  });
+                } else {
+                  setDormEditingId(null);
+                  setDormFormData({
+                    student_id: "",
+                    dormitory: "",
+                    room_number: "",
+                  });
+                }
               }}
               style={{ padding: "8px 16px" }}
             >
@@ -248,7 +349,7 @@ export default function Transport() {
 
           {showDormForm && (
             <form onSubmit={handleDormSubmit} style={{ marginBottom: "20px", padding: "10px", border: "1px solid #ccc" }}>
-              <h4>New Dormitory Allocation</h4>
+              <h4>{dormEditingId ? "Edit Dormitory Allocation" : "New Dormitory Allocation"}</h4>
 
               <select
                 name="student_id"
@@ -286,7 +387,7 @@ export default function Transport() {
               />
 
               <button type="submit" disabled={loading}>
-                {loading ? "Adding..." : "Add Allocation"}
+                {loading ? (dormEditingId ? "Saving..." : "Adding...") : dormEditingId ? "Save Changes" : "Add Allocation"}
               </button>
             </form>
           )}
@@ -298,6 +399,7 @@ export default function Transport() {
                   <th>Student</th>
                   <th>Dormitory</th>
                   <th>Room</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
@@ -307,6 +409,14 @@ export default function Transport() {
                     <td>{dorm.student_name}</td>
                     <td>{dorm.dormitory}</td>
                     <td>{dorm.room_number}</td>
+                    <td>
+                      <button type="button" onClick={() => handleDormEdit(dorm)} style={{ marginRight: "8px" }}>
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => handleDormDelete(dorm.id)}>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

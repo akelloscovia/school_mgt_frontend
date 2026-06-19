@@ -61,13 +61,18 @@ export default function Classes() {
     try {
       setLoading(true);
 
+      // normalize payload: numbers and nullable teacher
+      const payload = {
+        ...formData,
+        max_capacity: formData.max_capacity === "" ? null : parseInt(formData.max_capacity, 10),
+        teacher_id: formData.teacher_id === "" || formData.teacher_id == null ? null : parseInt(formData.teacher_id, 10),
+      };
+
       if (editingId) {
-        // Update class
-        await axiosClient.put(`/classes/${editingId}`, formData);
+        await axiosClient.put(`/classes/${editingId}`, payload);
         setStatus("Class updated successfully!");
       } else {
-        // Create class
-        await axiosClient.post("/classes", formData);
+        await axiosClient.post("/classes", payload);
         setStatus("Class created successfully!");
       }
 
@@ -91,18 +96,44 @@ export default function Classes() {
     }
   };
 
+  const getClassTeacherId = (cls) => cls.teacher_id || cls.teacher?.id || "";
+
+  const getClassTeacherName = (cls) => {
+    if (cls.teacher) {
+      return `${cls.teacher.first_name || ""} ${cls.teacher.last_name || ""}`.trim();
+    }
+    return "";
+  };
+
   const handleEdit = (cls) => {
     setFormData({
       name: cls.name,
       level: cls.level,
       stream: cls.stream || "",
-      teacher_id: cls.teacher_id || "",
+      teacher_id: getClassTeacherId(cls)?.toString() || "",
       academic_year: cls.academic_year,
       max_capacity: cls.max_capacity,
       description: cls.description || "",
     });
     setEditingId(cls.id);
     setShowForm(true);
+  };
+
+  const handleClearTeacher = async (classId) => {
+    if (!window.confirm("Remove the assigned teacher from this class?")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await axiosClient.put(`/classes/${classId}`, { teacher_id: null });
+      setStatus("Class teacher removed successfully!");
+      fetchClasses();
+    } catch (error) {
+      setStatus("Failed to remove class teacher");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (classId) => {
@@ -273,6 +304,15 @@ export default function Classes() {
                     {cls.teacher
                       ? `${cls.teacher.first_name} ${cls.teacher.last_name}`
                       : "Not assigned"}
+                    {cls.teacher && (
+                      <button
+                        type="button"
+                        onClick={() => handleClearTeacher(cls.id)}
+                        style={{ marginLeft: "8px", color: "#d00", cursor: "pointer", border: "none", background: "transparent" }}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </td>
                   <td>{cls.student_count || 0}</td>
                   <td>{cls.max_capacity}</td>

@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
+import { sortClasses } from "../../data/classes";
 
 export default function Subjects() {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -25,11 +27,15 @@ export default function Subjects() {
     try {
       const response = await axiosClient.get("/classes");
       const classesData = response.data?.data?.items || [];
-      setClasses(classesData);
+      const sorted = sortClasses(classesData);
+      setClasses(sorted);
       
       // Fetch subjects for the first class if available
-      if (classesData.length > 0) {
-        fetchSubjects(classesData[0].id);
+      if (sorted.length > 0) {
+        setSelectedClassId(sorted[0].id);
+        // ensure form defaults to this class when adding new subjects
+        setFormData((prev) => ({ ...prev, class_id: sorted[0].id }));
+        fetchSubjects(sorted[0].id);
       }
     } catch (error) {
       console.error("Error fetching classes:", error);
@@ -40,7 +46,9 @@ export default function Subjects() {
     try {
       setLoading(true);
       const response = await axiosClient.get(`/classes/${classId}/subjects`);
-      setSubjects(response.data?.data || []);
+      // API might return subjects either as data.data.items or data.data
+      const subjectsData = response.data?.data?.items || response.data?.data || [];
+      setSubjects(subjectsData);
     } catch (error) {
       console.error("Error fetching subjects:", error);
     } finally {
@@ -50,6 +58,7 @@ export default function Subjects() {
 
   const handleClassChange = (e) => {
     const classId = e.target.value;
+    setSelectedClassId(classId);
     setFormData({ ...formData, class_id: classId });
     if (classId) {
       fetchSubjects(classId);
@@ -75,14 +84,15 @@ export default function Subjects() {
 
     try {
       setLoading(true);
-      
+      const payload = { ...formData, class_id: formData.class_id || selectedClassId };
+
       if (editingId) {
         // Update subject
-        await axiosClient.put(`/subjects/${editingId}`, formData);
+        await axiosClient.put(`/subjects/${editingId}`, payload);
         setStatus("Subject updated successfully!");
       } else {
-        // Create subject
-        await axiosClient.post("/subjects", formData);
+        // Create subject (include class_id explicitly)
+        await axiosClient.post("/subjects", payload);
         setStatus("Subject created successfully!");
       }
 
@@ -90,13 +100,15 @@ export default function Subjects() {
       setFormData({
         name: "",
         code: "",
-        class_id: formData.class_id,
+        class_id: selectedClassId,
         description: "",
         credit_hours: 40,
       });
       setEditingId(null);
       setShowForm(false);
-      fetchSubjects(formData.class_id);
+      if (selectedClassId) {
+        fetchSubjects(selectedClassId);
+      }
     } catch (error) {
       setStatus(error.response?.data?.error || "Failed to save subject");
     } finally {
@@ -105,8 +117,15 @@ export default function Subjects() {
   };
 
   const handleEdit = (subject) => {
-    setFormData(subject);
+    setFormData({
+      name: subject.name || "",
+      code: subject.code || "",
+      class_id: subject.class_id || selectedClassId,
+      description: subject.description || "",
+      credit_hours: subject.credit_hours || 40,
+    });
     setEditingId(subject.id);
+    setSelectedClassId(subject.class_id || selectedClassId);
     setShowForm(true);
   };
 
@@ -119,7 +138,9 @@ export default function Subjects() {
       setLoading(true);
       await axiosClient.delete(`/subjects/${subjectId}`);
       setStatus("Subject deleted successfully!");
-      fetchSubjects(formData.class_id);
+      if (selectedClassId) {
+        fetchSubjects(selectedClassId);
+      }
     } catch (error) {
       setStatus("Failed to delete subject");
     } finally {
@@ -141,14 +162,14 @@ export default function Subjects() {
         <label htmlFor="class-select">Select Class: </label>
         <select
           id="class-select"
-          value={formData.class_id}
+          value={selectedClassId}
           onChange={handleClassChange}
           style={{ padding: "8px", marginRight: "10px" }}
         >
           <option value="">Choose a class...</option>
           {classes.map((cls) => (
             <option key={cls.id} value={cls.id}>
-              {cls.name} - {cls.level}
+              {cls.name || cls.label || cls.class_name || cls.level}
             </option>
           ))}
         </select>
@@ -160,7 +181,7 @@ export default function Subjects() {
             setFormData({
               name: "",
               code: "",
-              class_id: formData.class_id,
+              class_id: selectedClassId,
               description: "",
               credit_hours: 40,
             });

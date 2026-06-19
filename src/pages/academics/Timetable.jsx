@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
+import { sortClasses } from "../../data/classes";
 
 export default function Timetable() {
   const [timetableEntries, setTimetableEntries] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [showTeacherForm, setShowTeacherForm] = useState(false);
+  const [teacherForm, setTeacherForm] = useState({ first_name: "", last_name: "", phone: "" });
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -39,9 +42,10 @@ export default function Timetable() {
     try {
       const response = await axiosClient.get("/classes");
       const classesData = response.data?.data?.items || [];
-      setClasses(classesData);
-      if (classesData.length > 0) {
-        setSelectedClassId(classesData[0].id);
+      const sorted = sortClasses(classesData);
+      setClasses(sorted);
+      if (sorted.length > 0) {
+        setSelectedClassId(sorted[0].id);
       }
     } catch (error) {
       console.error("Error fetching classes:", error);
@@ -51,7 +55,8 @@ export default function Timetable() {
   const fetchSubjects = async (classId) => {
     try {
       const response = await axiosClient.get(`/classes/${classId}/subjects`);
-      setSubjects(response.data?.data || []);
+      const subjectsData = response.data?.data?.items || response.data?.data || [];
+      setSubjects(subjectsData);
     } catch (error) {
       console.error("Error fetching subjects:", error);
     }
@@ -60,7 +65,18 @@ export default function Timetable() {
   const fetchTeachers = async () => {
     try {
       const response = await axiosClient.get("/users?role=teacher");
-      setTeachers(response.data?.data?.items || []);
+      const apiTeachers = response.data?.data?.items || [];
+      // include any locally saved staff (fallback when API unavailable)
+      const local = (() => {
+        try {
+          const raw = localStorage.getItem('school-ms-frontend-staff');
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
+      })();
+      // merge local entries not present in api
+      const existingIds = new Set(apiTeachers.map((t) => t.id));
+      const merged = [...local.filter((t) => !existingIds.has(t.id)), ...apiTeachers];
+      setTeachers(merged);
     } catch (error) {
       console.error("Error fetching teachers:", error);
     }
@@ -86,6 +102,62 @@ export default function Timetable() {
     });
   };
 
+  const handleTeacherFormChange = (e) => {
+    const { name, value } = e.target;
+    setTeacherForm({ ...teacherForm, [name]: value });
+  };
+
+  const createLocalTeacher = (data) => {
+    const key = "school-ms-frontend-staff";
+    try {
+      const stored = localStorage.getItem(key);
+      const list = stored ? JSON.parse(stored) : [];
+      const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const member = { id, first_name: data.first_name, last_name: data.last_name, phone: data.phone, role: { name: 'Teacher' }, created_locally: true };
+      const next = [member, ...list.filter((i) => i.id !== member.id)];
+      localStorage.setItem(key, JSON.stringify(next));
+      return member;
+    } catch (e) {
+      console.error('Failed to save local teacher', e);
+      return null;
+    }
+  };
+
+  const handleTeacherSubmit = async (e) => {
+    e.preventDefault();
+    setStatus("");
+
+    if (!teacherForm.first_name || !teacherForm.last_name) {
+      setStatus('First and last name are required for teacher');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const payload = { first_name: teacherForm.first_name, last_name: teacherForm.last_name, phone: teacherForm.phone, role_name: 'teacher' };
+      const res = await axiosClient.post('/users', payload);
+      const created = res.data?.data || res.data;
+      fetchTeachers();
+      if (created?.id) setFormData((prev) => ({ ...prev, teacher_id: created.id }));
+      setShowTeacherForm(false);
+      setTeacherForm({ first_name: '', last_name: '', phone: '' });
+      setStatus('Teacher created');
+    } catch (error) {
+      const local = createLocalTeacher(teacherForm);
+      if (local) {
+        setTeachers((prev) => [local, ...prev]);
+        setFormData((prev) => ({ ...prev, teacher_id: local.id }));
+        setShowTeacherForm(false);
+        setTeacherForm({ first_name: '', last_name: '', phone: '' });
+        setStatus('Teacher created locally');
+      } else {
+        setStatus(error.response?.data?.error || 'Failed to create teacher');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("");
@@ -109,7 +181,7 @@ export default function Timetable() {
         setStatus("Timetable entry updated successfully!");
       } else {
         // Create timetable entry
-        await axiosClient.post(`/classes/${selectedClassId}/timetable`, formData);
+        await axiosClient.post(`/classes/${selectedClassId}/timetable`, submitData);
         setStatus("Timetable entry created successfully!");
       }
 
@@ -281,6 +353,23 @@ export default function Timetable() {
               </option>
             ))}
           </select>
+
+          <button
+            type="button"
+            onClick={() => setShowTeacherForm((s) => !s)}
+            style={{ marginTop: 8, marginLeft: 8 }}
+          >
+            {showTeacherForm ? 'Cancel' : 'Add Teacher'}
+          </button>
+
+          {showTeacherForm && (
+            <form onSubmit={handleTeacherSubmit} style={{ marginTop: 8, padding: 8, border: '1px solid #ddd' }}>
+              <input name="first_name" placeholder="First name" value={teacherForm.first_name} onChange={handleTeacherFormChange} required />
+              <input name="last_name" placeholder="Last name" value={teacherForm.last_name} onChange={handleTeacherFormChange} required />
+              <input name="phone" placeholder="Phone (optional)" value={teacherForm.phone} onChange={handleTeacherFormChange} />
+              <button type="submit" disabled={loading} style={{ display: 'block', marginTop: 8 }}>{loading ? 'Creating...' : 'Create Teacher'}</button>
+            </form>
+          )}
 
           <input
             type="text"

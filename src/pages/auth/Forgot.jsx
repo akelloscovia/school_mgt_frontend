@@ -16,10 +16,16 @@ export default function Forgot() {
     setLoading(true);
 
     axiosClient
-      .post("/auth/forgot-password", { email })
+      .post("/auth/forgot-password", { email: email.trim() })
       .then((res) => {
         setSuccess(true);
-        setMessage(res.data?.data?.reset_token || "Reset token sent (check console in dev mode)");
+        setMessage(
+          res.data?.data?.reset_token ||
+          res.data?.data?.token ||
+          res.data?.data?.resetToken ||
+          res.data?.data ||
+          "Reset token sent (check console in dev mode)"
+        );
       })
       .catch((err) => {
         setError(err.response?.data?.error || "Error sending reset request");
