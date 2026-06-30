@@ -13,7 +13,7 @@ export default function StudentProfile() {
         }}>
 
           <img
-            src="https://via.placeholder.com/120"
+            src="https://dummyimage.com/120x120/000/fff"
             alt="student"
             style={{
               borderRadius: "10px"
