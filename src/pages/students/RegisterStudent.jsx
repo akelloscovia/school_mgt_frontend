@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../../api/axiosClient";
 import PRESET_CLASSES, { sortClasses } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 const LOCAL_STORAGE_STUDENTS = "school-ms-frontend-students";
 
@@ -285,11 +286,7 @@ export default function RegisterStudent() {
 
         <select name="class_id" value={formData.class_id} onChange={handleChange} required>
           <option value="">Select Class</option>
-          {classOptions.map((cls) => (
-            <option key={cls.id} value={cls.id}>
-              {cls.label}
-            </option>
-          ))}
+          <ClassSelectOptions classes={classOptions} renderLabel={(cls) => cls.label} />
         </select>
 
         <textarea

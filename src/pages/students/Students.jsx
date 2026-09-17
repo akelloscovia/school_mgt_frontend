@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import axiosClient from "../../api/axiosClient";
 import PRESET_CLASSES, { sortClassLabels } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 const LOCAL_STORAGE_STUDENTS = "school-ms-frontend-students";
 
@@ -145,11 +146,7 @@ export default function Students() {
 
         <select value={classFilter} onChange={(event) => setClassFilter(event.target.value)}>
           <option value="">All classes</option>
-          {classOptions.map((className) => (
-            <option key={className} value={className}>
-              {className}
-            </option>
-          ))}
+          <ClassSelectOptions classes={classOptions} />
         </select>
 
         <button type="submit">Search</button>

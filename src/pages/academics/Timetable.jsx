@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
 import { sortClasses } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 export default function Timetable() {
   const [timetableEntries, setTimetableEntries] = useState([]);
@@ -266,11 +267,10 @@ export default function Timetable() {
           style={{ padding: "8px", marginRight: "10px" }}
         >
           <option value="">Choose a class...</option>
-          {classes.map((cls) => (
-            <option key={cls.id} value={cls.id}>
-              {cls.name} - {cls.level}
-            </option>
-          ))}
+          <ClassSelectOptions
+            classes={classes}
+            renderLabel={(cls) => `${cls.name} - ${cls.level}`}
+          />
         </select>
 
         <button

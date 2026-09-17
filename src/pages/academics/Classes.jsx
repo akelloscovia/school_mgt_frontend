@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
+import { CLASS_ORDER, groupClassesBySection } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 export default function Classes() {
   const [classes, setClasses] = useState([]);
@@ -153,18 +155,7 @@ export default function Classes() {
     }
   };
 
-  const educationLevels = [
-    "Baby Class",
-    "Middle Class",
-    "Top Class",
-    "P1",
-    "P2",
-    "P3",
-    "P4",
-    "P5",
-    "P6",
-    "P7",
-  ];
+  const groupedClasses = groupClassesBySection(classes);
 
   return (
     <div>
@@ -217,11 +208,7 @@ export default function Classes() {
             required
           >
             <option value="">Select Education Level</option>
-            {educationLevels.map((level) => (
-              <option key={level} value={level}>
-                {level}
-              </option>
-            ))}
+            <ClassSelectOptions classes={CLASS_ORDER} />
           </select>
 
           <input
@@ -281,59 +268,64 @@ export default function Classes() {
         {loading ? (
           <p>Loading classes...</p>
         ) : classes.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Class Name</th>
-                <th>Level</th>
-                <th>Stream</th>
-                <th>Class Teacher</th>
-                <th>Students</th>
-                <th>Capacity</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
+          groupedClasses.map(({ section, items }) => (
+            <div key={section} style={{ marginBottom: "24px" }}>
+              <h3>{section}</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Class Name</th>
+                    <th>Level</th>
+                    <th>Stream</th>
+                    <th>Class Teacher</th>
+                    <th>Students</th>
+                    <th>Capacity</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
 
-            <tbody>
-              {classes.map((cls) => (
-                <tr key={cls.id}>
-                  <td>{cls.name}</td>
-                  <td>{cls.level}</td>
-                  <td>{cls.stream || "N/A"}</td>
-                  <td>
-                    {cls.teacher
-                      ? `${cls.teacher.first_name} ${cls.teacher.last_name}`
-                      : "Not assigned"}
-                    {cls.teacher && (
-                      <button
-                        type="button"
-                        onClick={() => handleClearTeacher(cls.id)}
-                        style={{ marginLeft: "8px", color: "#d00", cursor: "pointer", border: "none", background: "transparent" }}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </td>
-                  <td>{cls.student_count || 0}</td>
-                  <td>{cls.max_capacity}</td>
-                  <td>
-                    <button
-                      onClick={() => handleEdit(cls)}
-                      style={{ marginRight: "10px", cursor: "pointer" }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(cls.id)}
-                      style={{ color: "red", cursor: "pointer" }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                <tbody>
+                  {items.map((cls) => (
+                    <tr key={cls.id}>
+                      <td>{cls.name}</td>
+                      <td>{cls.level}</td>
+                      <td>{cls.stream || "N/A"}</td>
+                      <td>
+                        {cls.teacher
+                          ? `${cls.teacher.first_name} ${cls.teacher.last_name}`
+                          : "Not assigned"}
+                        {cls.teacher && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearTeacher(cls.id)}
+                            style={{ marginLeft: "8px", color: "#d00", cursor: "pointer", border: "none", background: "transparent" }}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                      <td>{cls.student_count || 0}</td>
+                      <td>{cls.max_capacity}</td>
+                      <td>
+                        <button
+                          onClick={() => handleEdit(cls)}
+                          style={{ marginRight: "10px", cursor: "pointer" }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cls.id)}
+                          style={{ color: "red", cursor: "pointer" }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))
         ) : (
           <p>No classes found. Add one to get started!</p>
         )}

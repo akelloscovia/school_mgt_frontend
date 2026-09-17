@@ -11,6 +11,37 @@ export const CLASS_ORDER = [
   "P7",
 ];
 
+export const CLASS_SECTIONS = [
+  { section: "Kindergarten", levels: ["Baby Class", "Middle Class", "Top Class"] },
+  { section: "Primary", levels: ["P1", "P2", "P3", "P4", "P5", "P6", "P7"] },
+];
+
+export const getClassSection = (cls) => {
+  const label = getClassLabel(cls);
+  const match = CLASS_SECTIONS.find((group) => group.levels.includes(label));
+  return match ? match.section : "Other";
+};
+
+// Groups classes into { section, items } buckets, ordered Kindergarten -> Primary -> Other,
+// with each bucket internally sorted by CLASS_ORDER.
+export const groupClassesBySection = (items) => {
+  const buckets = new Map();
+  [...CLASS_SECTIONS.map((g) => g.section), "Other"].forEach((section) =>
+    buckets.set(section, [])
+  );
+
+  items.forEach((item) => {
+    buckets.get(getClassSection(item)).push(item);
+  });
+
+  return Array.from(buckets.entries())
+    .filter(([, groupItems]) => groupItems.length > 0)
+    .map(([section, groupItems]) => ({
+      section,
+      items: sortClasses(groupItems),
+    }));
+};
+
 export const getClassLabel = (cls) => {
   if (typeof cls === "string") return cls;
   return (

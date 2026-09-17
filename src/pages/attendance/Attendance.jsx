@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
-import { getClassLabel, sortClasses } from "../../data/classes";
+import { sortClasses } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 export default function Attendance() {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -114,11 +115,7 @@ export default function Attendance() {
             style={{ marginLeft: "10px", padding: "8px" }}
           >
             <option value="">Select Class</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {getClassLabel(cls)}
-              </option>
-            ))}
+            <ClassSelectOptions classes={classes} />
           </select>
         </label>
 

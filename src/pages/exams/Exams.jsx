@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
 import { sortClasses } from "../../data/classes";
+import ClassSelectOptions from "../../components/ui/classSelectOptions";
 
 export default function Exams() {
   const [marks, setMarks] = useState([]);
@@ -249,11 +250,10 @@ export default function Exams() {
             style={{ marginLeft: "10px", padding: "8px" }}
           >
             <option value="">Select Class</option>
-            {classes.map((cls) => (
-              <option key={cls.id} value={cls.id}>
-                {cls.name} - {cls.level}
-              </option>
-            ))}
+            <ClassSelectOptions
+              classes={classes}
+              renderLabel={(cls) => `${cls.name} - ${cls.level}`}
+            />
           </select>
         </label>
 

@@ -20,6 +20,10 @@ export default function Sidebar() {
           Register Student
         </Link>
 
+        <Link to="/applications">
+          Applications
+        </Link>
+
         <Link to="/attendance">
           Attendance
         </Link>

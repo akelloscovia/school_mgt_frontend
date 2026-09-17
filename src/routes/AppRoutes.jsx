@@ -17,6 +17,9 @@ import Students from "../pages/students/Students";
 import RegisterStudent from "../pages/students/RegisterStudent";
 import StudentProfile from "../pages/students/StudentProfile";
 
+/* ADMISSIONS */
+import Applications from "../pages/admissions/Applications";
+
 /* ATTENDANCE */
 import Attendance from "../pages/attendance/Attendance";
 
@@ -82,6 +85,12 @@ export default function AppRoutes() {
           <Route
             path="students/profile"
             element={<StudentProfile />}
+          />
+
+          {/* ADMISSIONS */}
+          <Route
+            path="applications"
+            element={<Applications />}
           />
 
           {/* ATTENDANCE */}
